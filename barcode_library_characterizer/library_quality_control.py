@@ -122,3 +122,26 @@ def build_hamming_distance_histogram_parallel(
             hamming_histogram[distance] += 1
 
     return hamming_histogram
+
+
+def build_hamming_distance_multithreading(
+        csv_path: pathlib.Path) -> dict:
+    hamming_histogram = defaultdict(int)
+    
+    with open(csv_path) as csv_file:
+        reader = csv.reader(csv_file)
+        skip_lines(reader, 1)
+        barcodes = [
+            row[1]
+            for row in reader ]
+
+    pairs = [ (slow,fast) for slow in range(len(barcodes))
+              for fast in range(slow+1, len(barcodes)) ]
+
+    for slow,fast in pairs:
+        distance = hamming_distance(barcodes[fast], barcodes[slow])
+        hamming_histogram[distance] += 1
+    
+    return hamming_histogram
+
+    
