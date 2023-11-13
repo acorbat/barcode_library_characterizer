@@ -3,16 +3,18 @@ from timeit import timeit
 from random import choices
 from barcode_library_characterizer import library_quality_control as lb
 
-ALPHABET="ABCDE"
-NUM=10
+ALPHABET = "ABCDE"
+NUM = 10
+
 
 def samples(k=10):
     while True:
         yield "".join(choices(ALPHABET, k=k))
 
-barcodes = list(islice(samples(),10000))
 
-sizes = [10,100,1000,10000]
+barcodes = list(islice(samples(), 10000))
+
+sizes = [10, 100, 1000, 10000]
 
 # Not very reliable, prefer ipython %timeit
 for size in sizes:

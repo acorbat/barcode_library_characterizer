@@ -124,44 +124,47 @@ def build_hamming_distance_histogram_parallel(
     return hamming_histogram
 
 
-def build_hamming_distance_simple(
-        csv_path: pathlib.Path) -> dict:
+def build_hamming_distance_simple(csv_path: pathlib.Path) -> dict:
     hamming_histogram = defaultdict(int)
-    
+
     with open(csv_path) as csv_file:
         reader = csv.reader(csv_file)
         skip_lines(reader, 1)
-        barcodes = [
-            row[1]
-            for row in reader ]
+        barcodes = [row[1] for row in reader]
 
     return build_histogram_simple(barcodes)
-        
-        
+
+
 def build_histogram_simple(barcodes):
-    arr = [0]*(len(barcodes[0])+1)
-    c = Counter( hamming_distance(barcodes[fast], barcodes[slow])
-                    for slow,fast in pairs(len(barcodes)) )
-    for i,count in c.items():
+    arr = [0] * (len(barcodes[0]) + 1)
+    c = Counter(
+        hamming_distance(barcodes[fast], barcodes[slow])
+        for slow, fast in pairs(len(barcodes))
+    )
+    for i, count in c.items():
         arr[i] = count
     return arr
 
-def build_histogram_arr(barcodes):
-    arr = [0]*(len(barcodes[0])+1)
 
-    for slow,fast in pairs(len(barcodes)):
+def build_histogram_arr(barcodes):
+    arr = [0] * (len(barcodes[0]) + 1)
+
+    for slow, fast in pairs(len(barcodes)):
         d = hamming_distance(barcodes[fast], barcodes[slow])
         arr[d] += 1
     return arr
 
-# Trick to share state between processes, add it to a module field 
+
+# Trick to share state between processes, add it to a module field
 from . import shared
+
 
 # can't define as a local function because it can't be pickled to send between processes
 def update(i, j):
     d = hamming_distance(shared.barcodes[i], shared.barcodes[j])
     shared.A[d] += 1
-    #return d
+    # return d
+
 
 # https://stackoverflow.com/a/1721911
 def initProcess(A, barcodes):
@@ -170,31 +173,36 @@ def initProcess(A, barcodes):
 
 
 def build_histogram_multiprocess(barcodes):
-    arr = [0]*(len(barcodes[0])+1)
-    A = Array('i', arr)
+    arr = [0] * (len(barcodes[0]) + 1)
+    A = Array("i", arr)
 
-    with Pool(initializer=initProcess,initargs=(A,barcodes)) as p:
+    with Pool(initializer=initProcess, initargs=(A, barcodes)) as p:
         p.starmap(update, pairs(len(barcodes)))
-    
+
     return list(A)
+
 
 def pairs(n=10):
     for slow in range(n):
-        for fast in range(slow+1,n):
+        for fast in range(slow + 1, n):
             yield (slow, fast)
 
+
 def map_f(idx):
-    i,j = idx
-    arr = [0]*(len(shared.barcodes[0])+1)
+    i, j = idx
+    arr = [0] * (len(shared.barcodes[0]) + 1)
     d = hamming_distance(shared.barcodes[i], shared.barcodes[j])
     arr[d] = 1
     return arr
-    
+
+
 def reduce_f(st, new):
     # array componentwise sum
-    return [ x+y for x,y in zip(st,new) ]
+    return [x + y for x, y in zip(st, new)]
+
 
 def build_histogram_mapReduce(barcodes):
     from functools import reduce
-    initProcess(None,barcodes)
+
+    initProcess(None, barcodes)
     return reduce(reduce_f, map(map_f, pairs(len(barcodes))))
