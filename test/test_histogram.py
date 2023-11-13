@@ -20,3 +20,10 @@ def test_mp_vs_arr():
     arr = lb.build_histogram_arr(barcodes)
     mp = lb.build_histogram_multiprocess(barcodes)
     assert arr == mp
+
+def test_mapReduce_vs_arr():
+    s = samples(k=5)
+    barcodes = [ next(s) for _ in range(10) ]
+    arr = lb.build_histogram_arr(barcodes)
+    mr = lb.build_histogram_mapReduce(barcodes)
+    assert arr == mr

@@ -182,3 +182,19 @@ def pairs(n=10):
     for slow in range(n):
         for fast in range(slow+1,n):
             yield (slow, fast)
+
+def map_f(idx):
+    i,j = idx
+    arr = [0]*(len(shared.barcodes[0])+1)
+    d = hamming_distance(shared.barcodes[i], shared.barcodes[j])
+    arr[d] = 1
+    return arr
+    
+def reduce_f(st, new):
+    # array componentwise sum
+    return [ x+y for x,y in zip(st,new) ]
+
+def build_histogram_mapReduce(barcodes):
+    from functools import reduce
+    initProcess(None,barcodes)
+    return reduce(reduce_f, map(map_f, pairs(len(barcodes))))
