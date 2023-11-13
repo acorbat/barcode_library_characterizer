@@ -1,8 +1,8 @@
 import csv
-from collections import defaultdict
+from collections import defaultdict, Counter
 from itertools import combinations
 from math import comb
-from multiprocessing import Pool
+from multiprocessing import Pool, Array
 import pathlib
 
 from tqdm import tqdm
@@ -124,7 +124,7 @@ def build_hamming_distance_histogram_parallel(
     return hamming_histogram
 
 
-def build_hamming_distance_multithreading(
+def build_hamming_distance_simple(
         csv_path: pathlib.Path) -> dict:
     hamming_histogram = defaultdict(int)
     
@@ -135,13 +135,50 @@ def build_hamming_distance_multithreading(
             row[1]
             for row in reader ]
 
-    pairs = [ (slow,fast) for slow in range(len(barcodes))
-              for fast in range(slow+1, len(barcodes)) ]
+    return build_histogram_simple(barcodes)
+        
+        
+def build_histogram_simple(barcodes):
+    arr = [0]*(len(barcodes[0])+1)
+    c = Counter( hamming_distance(barcodes[fast], barcodes[slow])
+                    for slow,fast in pairs(len(barcodes)) )
+    for i,count in c.items():
+        arr[i] = count
+    return arr
 
-    for slow,fast in pairs:
-        distance = hamming_distance(barcodes[fast], barcodes[slow])
-        hamming_histogram[distance] += 1
-    
-    return hamming_histogram
+def build_histogram_arr(barcodes):
+    arr = [0]*(len(barcodes[0])+1)
 
+    for slow,fast in pairs(len(barcodes)):
+        d = hamming_distance(barcodes[fast], barcodes[slow])
+        arr[d] += 1
+    return arr
+
+# Trick to share state between processes, add it to a module field 
+from . import shared
+
+# can't define as a local function because it can't be pickled to send between processes
+def update(i, j):
+    d = hamming_distance(shared.barcodes[i], shared.barcodes[j])
+    shared.A[d] += 1
+    #return d
+
+# https://stackoverflow.com/a/1721911
+def initProcess(A, barcodes):
+    shared.A = A
+    shared.barcodes = barcodes
+
+
+def build_histogram_multiprocess(barcodes):
+    arr = [0]*(len(barcodes[0])+1)
+    A = Array('i', arr)
+
+    with Pool(initializer=initProcess,initargs=(A,barcodes)) as p:
+        p.starmap(update, pairs(len(barcodes)))
     
+    return list(A)
+
+def pairs(n=10):
+    for slow in range(n):
+        for fast in range(slow+1,n):
+            yield (slow, fast)
